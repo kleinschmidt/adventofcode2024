@@ -13,15 +13,8 @@ import (
 
 func main() {
 	input, _ := io.ReadAll(os.Stdin)
-
 	part1(input)
-
-
-	// part 2
-	// scanner := bufio.NewScanner(bytes.NewReader(input))
-
 	part2(input)
-	
 }
 
 func part1(input []byte) {
