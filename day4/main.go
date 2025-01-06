@@ -19,6 +19,7 @@ func main() {
 	// fmt.Println("Is it S: ", lines[1][1] == 'S')
 
 	part1(lines)
+	part2(lines)
 }
 
 func part1(lines []string) {
@@ -48,4 +49,20 @@ func search(lines []string, x int, y int, dx int, dy int, text string) int {
 	}
 }
 
-func part2() {}
+func part2(lines []string) {
+	total := 0
+	for x, line := range lines {
+		for y, _ := range line {
+			for dx := -1; dx <= 1; dx += 2 {
+				for dy := -1; dy <= 1; dy += 2 {
+					if search(lines, x, y, dx, dy, "MAS") == 1 {
+						total += search(lines, x + 2*dx, y, -dx, dy, "MAS")
+						total += search(lines, x, y + 2*dy, dx, -dy, "MAS")
+					}
+				}
+			}
+		}
+	}
+	// we've double counted so divide by two
+	fmt.Println("Total \"X-MAS\": ", total / 2)
+}
