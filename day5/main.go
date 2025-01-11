@@ -14,10 +14,11 @@ import (
 func main() {
 	bytes, _ := io.ReadAll(os.Stdin)
 	parseInput(bytes)
-	order, revOrder, manuals := parseInput(bytes)
+	order, revOrder, _ := parseInput(bytes)
 	fmt.Println(order)
 	fmt.Println(revOrder)
-	part1(order, revOrder, manuals)
+	// part1(order, revOrder, manuals)
+	fmt.Println(topoSort(order))
 }
 
 func parseInput(input []byte) (order map[int][]int, revOrder map[int][]int, manuals [][]int) {
@@ -52,6 +53,53 @@ func parseInput(input []byte) (order map[int][]int, revOrder map[int][]int, manu
 
 	return
 }
+
+func topoSort(order map[int][]int) []int {
+	inDegree := make(map[int]int)
+	for _, edges := range order {
+		for _, next := range edges {
+			inDegree[next] += 1
+		}
+	}
+	fmt.Println("Total nodes:", len(order))
+	fmt.Println("Node in degrees:", inDegree, len(inDegree))
+	roots := make([]int, 0)
+	for node := range order {
+		if inDegree[node] == 0 {
+			roots = append(roots, node)
+		}
+	}
+	fmt.Println("Starting root nodes: ", roots)
+	sorted := make([]int, 0, len(order))
+	lastNode := -1
+	for len(roots) > 0 {
+		// pop the next node off the end of the list of working roots
+		node, roots := roots[len(roots)-1], roots[:len(roots)-1]
+		if node == lastNode {
+			break
+		}
+		lastNode = node
+		fmt.Println("Visiting node", node)
+		// mark this node as visited by adding it to the list of sorted nodes
+		sorted = append(sorted, node)
+		for _, next := range order[node] {
+			inDegree[next]--
+			if inDegree[next] <= 0 {
+				roots = append(roots, next)
+			}
+		}
+		fmt.Printf("Roots after visiting node %d: %v\n", node, roots)
+	}
+	return sorted
+}
+
+/*
+simplify the digraph:
+- DFS traversal:
+- for each node
+- for each edge
+
+*/
 
 func _int(x string) int {
 	xx, _ := strconv.Atoi(x)
