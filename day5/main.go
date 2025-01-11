@@ -3,10 +3,11 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"fmt"
 	"io"
 	"os"
-	// "slices"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -14,16 +15,16 @@ import (
 func main() {
 	bytes, _ := io.ReadAll(os.Stdin)
 	parseInput(bytes)
-	order, revOrder, _ := parseInput(bytes)
+	order, manuals := parseInput(bytes)
 	fmt.Println(order)
-	fmt.Println(revOrder)
-	// part1(order, revOrder, manuals)
-	fmt.Println(topoSort(order))
+	fmt.Println("\n---- Part 1: ----")
+	part1(order, manuals)
+	fmt.Println("\n---- Part 2: ----")
+	part2(order, manuals)
 }
 
-func parseInput(input []byte) (order map[int][]int, revOrder map[int][]int, manuals [][]int) {
+func parseInput(input []byte) (order map[int][]int, manuals [][]int) {
 	order = make(map[int][]int)
-	revOrder = make(map[int][]int)
 	manuals = make([][]int, 0)
 
 	scanner := bufio.NewScanner(bytes.NewReader(input))
@@ -37,7 +38,6 @@ func parseInput(input []byte) (order map[int][]int, revOrder map[int][]int, manu
 		first := _int(fields[0])
 		second := _int(fields[1])
 		order[first] = append(order[first], second)
-		revOrder[second] = append(revOrder[second], first)
 	}
 
 	// parse the X,Y,Z,... manuals
@@ -54,101 +54,61 @@ func parseInput(input []byte) (order map[int][]int, revOrder map[int][]int, manu
 	return
 }
 
-func topoSort(order map[int][]int) []int {
-	inDegree := make(map[int]int)
-	for _, edges := range order {
-		for _, next := range edges {
-			inDegree[next] += 1
-		}
-	}
-	fmt.Println("Total nodes:", len(order))
-	fmt.Println("Node in degrees:", inDegree, len(inDegree))
-	roots := make([]int, 0)
-	for node := range order {
-		if inDegree[node] == 0 {
-			roots = append(roots, node)
-		}
-	}
-	fmt.Println("Starting root nodes: ", roots)
-	sorted := make([]int, 0, len(order))
-	lastNode := -1
-	for len(roots) > 0 {
-		// pop the next node off the end of the list of working roots
-		node, roots := roots[len(roots)-1], roots[:len(roots)-1]
-		if node == lastNode {
-			break
-		}
-		lastNode = node
-		fmt.Println("Visiting node", node)
-		// mark this node as visited by adding it to the list of sorted nodes
-		sorted = append(sorted, node)
-		for _, next := range order[node] {
-			inDegree[next]--
-			if inDegree[next] <= 0 {
-				roots = append(roots, next)
-			}
-		}
-		fmt.Printf("Roots after visiting node %d: %v\n", node, roots)
-	}
-	return sorted
-}
-
-/*
-simplify the digraph:
-- DFS traversal:
-- for each node
-- for each edge
-
-*/
-
 func _int(x string) int {
 	xx, _ := strconv.Atoi(x)
 	return xx
 }
 
-func part1(order map[int][]int, revOrder map[int][]int, manuals [][]int) (total int) {
+type Pair struct {a, b int}
+
+func (p Pair) Delta() int {
+	diff := p.a - p.b
+	if diff < 0 {
+		diff = -diff
+	}
+	return diff
+}
+
+func (p Pair) String() string {
+	return fmt.Sprintf("(%d, %d)", p.a, p.b)
+}
+
+func violations(order map[int][]int, manual []int) (bad []Pair) {
+	bad = make([]Pair, 0)
+	// strategy here is:
+	// three different lookup indices:
+	// - for page number, all pages that must be later
+	// - for page number, all pages that must be earlier
+	// - for page in a manual, the order (index).
+	//
+	// then we iterate through the manual, and check that the index is
+	// less/greater where required
+	index := make(map[int]int)
+	for i, page := range manual {
+		index[page] = i
+	}
+
+	fmt.Println("Checking manual ", manual)
+	for i, page := range manual {
+		// check forward ordering for violations (if any page that must occur _after_ page comes earlier)
+		for _, next := range order[page] {
+			idx, ok := index[next]
+			if ok && idx < i {
+				bad = append(bad, Pair{i, idx})
+				fmt.Printf("Violation: %d (%d) precedes %d (%d)\n", next, idx, page, i)
+			}
+		}
+	}
+
+	return bad
+}
+
+func part1(order map[int][]int, manuals [][]int) (total int) {
 	total = 0
 	for _, manual := range manuals {
-		// strategy here is:
-		// three different lookup indices:
-		// - for page number, all pages that must be later
-		// - for page number, all pages that must be earlier
-		// - for page in a manual, the order (index).
-		//
-		// then we iterate through the manual, and check that the index is
-		// less/greater where required
-		index := make(map[int]int)
-		for i, page := range manual {
-			index[page] = i
-		}
-
-		okay := true
-
-		fmt.Println("Checking manual ", manual)
-		for i, page := range manual {
-			nexts := order[page]
-			prevs := revOrder[page]
-			for _, next := range nexts {
-				if !okay {break}
-				idx, ok := index[next]
-				if ok && idx < i {
-					fmt.Printf("Violation: %d (%d) precedes %d (%d)\n", next, idx, page, i)
-					okay = false
-				}
-			}
-
-			if !okay {break}
-			for _, prev := range prevs {
-				if !okay {break}
-				idx, ok := index[prev]
-				if ok && idx > i {
-					fmt.Printf("Violation: %d (%d) follows %d (%d)\n", prev, idx, page, i)
-					okay = false
-				}
-			}					
-		}
-
-		if okay {
+		badPairs := violations(order, manual)
+		fmt.Println("Found violations:", badPairs)
+		if len(badPairs) == 0 {
 			total += manual[len(manual) / 2]
 		}
 	}
@@ -156,4 +116,28 @@ func part1(order map[int][]int, revOrder map[int][]int, manuals [][]int) (total 
 	return total
 }
 
-func part2() {}
+func fixManualMiddlePage(order map[int][]int, manual []int) (middle int) {
+	badPairs := violations(order, manual)
+	fmt.Println("Found violations:", badPairs)
+	if len(badPairs) == 0 {
+		return 0
+	}
+	for len(badPairs) > 0 {
+		p := slices.MaxFunc(badPairs, func(p1, p2 Pair) int {
+			return cmp.Compare(p1.Delta(), p2.Delta())
+		})
+		fmt.Printf("Worst violation: %v\n", p)
+		manual[p.a], manual[p.b] = manual[p.b], manual[p.a]
+		badPairs = violations(order, manual)
+	}
+	return manual[len(manual) / 2]
+}
+
+func part2(order map[int][]int, manuals [][]int) (total int) {
+	total = 0
+	for _, manual := range manuals {
+		total += fixManualMiddlePage(order, manual)
+	}
+	fmt.Println("Total of middle pages: ", total)
+	return total
+}
