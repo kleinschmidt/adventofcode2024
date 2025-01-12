@@ -34,7 +34,7 @@ func parseInput(input []byte) (order map[int][]int, manuals [][]int) {
 		if line == "" {
 			break
 		}
-		fields := strings.FieldsFunc(line, func (r rune) bool {return r == '|'})
+		fields := strings.FieldsFunc(line, func(r rune) bool { return r == '|' })
 		first := _int(fields[0])
 		second := _int(fields[1])
 		order[first] = append(order[first], second)
@@ -43,9 +43,9 @@ func parseInput(input []byte) (order map[int][]int, manuals [][]int) {
 	// parse the X,Y,Z,... manuals
 	for scanner.Scan() {
 		line := scanner.Text()
-		fields := strings.FieldsFunc(line, func (r rune) bool {return r == ','})
+		fields := strings.FieldsFunc(line, func(r rune) bool { return r == ',' })
 		manual := make([]int, len(fields))
-		for i, f := range(fields) {
+		for i, f := range fields {
 			manual[i] = _int(f)
 		}
 		manuals = append(manuals, manual)
@@ -59,7 +59,7 @@ func _int(x string) int {
 	return xx
 }
 
-type Pair struct {a, b int}
+type Pair struct{ a, b int }
 
 func (p Pair) Delta() int {
 	diff := p.a - p.b
@@ -109,7 +109,7 @@ func part1(order map[int][]int, manuals [][]int) (total int) {
 		badPairs := violations(order, manual)
 		fmt.Println("Found violations:", badPairs)
 		if len(badPairs) == 0 {
-			total += manual[len(manual) / 2]
+			total += manual[len(manual)/2]
 		}
 	}
 	fmt.Println("Total of middle pages: ", total)
@@ -130,7 +130,7 @@ func fixManualMiddlePage(order map[int][]int, manual []int) (middle int) {
 		manual[p.a], manual[p.b] = manual[p.b], manual[p.a]
 		badPairs = violations(order, manual)
 	}
-	return manual[len(manual) / 2]
+	return manual[len(manual)/2]
 }
 
 func part2(order map[int][]int, manuals [][]int) (total int) {
