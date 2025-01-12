@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	// "io"
 	"os"
 )
 
@@ -43,7 +42,7 @@ func search(lines []string, x int, y int, dx int, dy int, text string) int {
 	} else if dx == 0 && dy == 0 || x < 0 || x >= len(lines) || y < 0 || y >= len(lines[x]) {
 		return 0
 	} else if lines[x][y] == text[0] {
-		return search(lines, x + dx, y + dy, dx, dy, text[1:])
+		return search(lines, x+dx, y+dy, dx, dy, text[1:])
 	} else {
 		return 0
 	}
@@ -56,13 +55,13 @@ func part2(lines []string) {
 			for dx := -1; dx <= 1; dx += 2 {
 				for dy := -1; dy <= 1; dy += 2 {
 					if search(lines, x, y, dx, dy, "MAS") == 1 {
-						total += search(lines, x + 2*dx, y, -dx, dy, "MAS")
-						total += search(lines, x, y + 2*dy, dx, -dy, "MAS")
+						total += search(lines, x+2*dx, y, -dx, dy, "MAS")
+						total += search(lines, x, y+2*dy, dx, -dy, "MAS")
 					}
 				}
 			}
 		}
 	}
 	// we've double counted so divide by two
-	fmt.Println("Total \"X-MAS\": ", total / 2)
+	fmt.Println("Total \"X-MAS\": ", total/2)
 }
