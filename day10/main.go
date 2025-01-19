@@ -117,6 +117,10 @@ func NewQueue[E comparable](arr []E) *Queue[E] {
 
 func search(topo [][]byte, trailhead Point) map[Point]int {
 	queue := NewQueue([]Point{trailhead})
+	// we need to keep track of how many summits we find (part 1) and the total
+	// number of distinct paths we take to get there (part 2).  we could be a
+	// bit more efficient by keeping a visit count of _each_ point but this is
+	// good enough as a rough-n-ready solution
 	summits := make(map[Point]int)
 
 	for next := range queue.All() {
