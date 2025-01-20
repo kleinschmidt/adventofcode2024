@@ -80,6 +80,8 @@ func main() {
 	fmt.Println(list)
 
 	part1(list)
+
+	part2(stones, 75)
 }
 
 func timeLeadingZeros(x string) string {
@@ -120,9 +122,61 @@ func part1(stones *List[string]) {
 	fmt.Println("Total stones:", n)
 }
 
-func part2(stones []string) {
-	cache := make(map[int][]int)
-	for stone := range stones {
+type Stone struct{ value, depth int }
 
+func part2(stones []string, depth int) {
+	cache := make(map[Stone]int)
+	total := 0
+	for _, stoneStr := range stones {
+		val, _ := strconv.Atoi(stoneStr)
+		stone := Stone{val, depth}
+		total += blink(cache, stone)
 	}
+	fmt.Printf("\nTotal stones after %v: %v (cache size: %v)\n", depth, total, len(cache))
+}
+
+func digits(x int) int {
+	if x < 0 {
+		x = -x
+	}
+	i := 10
+	n := 1
+	for i <= x {
+		i *= 10
+		n += 1
+	}
+	return n
+}
+
+func blink(cache map[Stone]int, stone Stone) int {
+	val, ok := cache[stone]
+	if ok {
+		return val
+	}
+
+	nextDepth := stone.depth - 1
+
+	switch {
+	case nextDepth < 0:
+		// fmt.Print(stone.value, " ")
+		// dont cache leaves, they're obvious :)
+		return 1
+	case stone.value == 0:
+		val = blink(cache, Stone{1, nextDepth})
+	case digits(stone.value)%2 == 0:
+		valStr := strconv.Itoa(stone.value)
+		half := len(valStr) / 2
+		next1, _ := strconv.Atoi(valStr[:half])
+		next2, _ := strconv.Atoi(valStr[half:])
+		val = blink(cache, Stone{next1, nextDepth}) + blink(cache, Stone{next2, nextDepth})
+	default:
+		nextVal := stone.value * 2024
+		if nextVal < stone.value {
+			panic("overflow! " + strconv.Itoa(stone.value))
+		}
+		val = blink(cache, Stone{nextVal, nextDepth})
+	}
+
+	cache[stone] = val
+	return val
 }
