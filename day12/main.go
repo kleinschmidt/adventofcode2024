@@ -16,7 +16,12 @@ func parseInput() ([][]byte, Point) {
 	y := 0
 	board := make([][]byte, 0)
 	for scanner.Scan() {
-		line := scanner.Bytes()
+		// real input is big enough that it fills the buffer so we must copy to
+		// avoid overwriting early input with later input...
+		bytes := scanner.Bytes()
+		line := make([]byte, len(bytes))
+		copy(line, bytes)
+		// fmt.Println(string(line))
 		board = append(board, line)
 		y++
 	}
@@ -25,11 +30,6 @@ func parseInput() ([][]byte, Point) {
 
 func main() {
 	board, size := parseInput()
-	for _, line := range board {
-		fmt.Println(string(line))
-	}
-	fmt.Println(size)
-
 	part1(board, size)
 }
 
@@ -75,43 +75,37 @@ func get(board [][]byte, p Point) byte {
 	}
 }
 
-func visit(start Point, board [][]byte, visited [][]bool) (area, perimeter int) {
+func visit(start Point, board [][]byte, visited [][]bool) (area, perimeter int, region map[Point]bool) {
 	area = 0
 	perimeter = 0
 
-	// stack := []Point{start}
+	region = make(map[Point]bool)
+
 	queue := new(queues.Queue[Point])
+	visited[start.y][start.x] = true
+	region[start] = true
 	queue.Enqueue(start)
 
 	for queue.HasNext() {
 		cur := queue.Dequeue()
-		// for len(stack) > 0 {
-		// 	// pointer just to match the queue
-		// 	cur := &stack[len(stack)-1]
-		// 	stack = stack[:len(stack)-1]
-		// sicne this location was enqueued, it may have been visited from
-		// another neighbor.
-		if visited[cur.y][cur.x] {
-			continue
-		}
 		for next := range neighbors(*cur) {
-			// fmt.Print("  ", next)
 			if !inbounds(next, board) || board[next.y][next.x] != board[cur.y][cur.x] {
-				// every out-of-bounds point can only be visited from one
-				// in-bounds point ...wait that's not true, if you have a
-				// u-shaped region.  but still, every edge that has a different
-				// species is a length of fence you need...
 				perimeter++
 			} else if !visited[next.y][next.x] {
+				visited[next.y][next.x] = true
+				region[next] = true
 				queue.Enqueue(next)
-				// stack = append(stack, next)
+			} else {
+				// visited, inbounds, and same species: should be in region!
+				if !region[next] {
+					panic(fmt.Sprintf("Expected %v in region", next))
+				}
 			}
 		}
-		visited[cur.y][cur.x] = true
 		area++
 	}
 
-	return area, perimeter
+	return area, perimeter, region
 }
 
 func printBoard(board [][]byte, visited [][]bool) {
@@ -151,17 +145,22 @@ func part1(board [][]byte, size Point) {
 	total := 0
 	total_perimeter := 0
 	total_area := 0
+	total_regions := 0
+
+	regions := make([]map[Point]bool, 0)
 
 	for {
 		next := nextUnvisited(visited)
 		if next == size {
 			break
 		}
-		area, perimeter := visit(next, board, visited)
+		area, perimeter, region := visit(next, board, visited)
+		regions = append(regions, region)
 		total_area += area
 		total_perimeter += perimeter
-		fmt.Printf("Plot %v %v: area=%d, perimeter=%d\n", get(board, next), next, area, perimeter)
+		fmt.Printf("Plot %v %v: area=%d, perimeter=%d\n", string(get(board, next)), next, area, perimeter)
 		total += area * perimeter
+		total_regions += 1
 	}
 
 	// printBoard(board, visited)
@@ -169,4 +168,23 @@ func part1(board [][]byte, size Point) {
 	fmt.Println("total:", total)
 	fmt.Println("total_area:", total_area, "expected", size.x*size.y)
 	fmt.Println("total_perimeter:", total_perimeter, "expected", totalPerimeter(board))
+	fmt.Println("total_regions:", total_regions)
+
+	checkRegions(board, regions)
+}
+
+func checkRegions(board [][]byte, regions []map[Point]bool) {
+	for _, region := range regions {
+		for p := range region {
+			neighbors := []Point{{p.x, p.y + 1}, {p.x + 1, p.y}, {p.x, p.y - 1}, {p.x - 1, p.y}}
+			for _, n := range neighbors {
+				if n.y < 0 || n.y >= len(board) || n.x < 0 || n.x >= len(board[0]) {
+					// out of bounds
+					continue
+				} else if !region[n] && (board[p.y][p.x] == board[n.y][n.x]) {
+					fmt.Println("Regions should be merged:", p, n, string(board[p.y][p.x]), string(board[n.y][n.x]))
+				}
+			}
+		}
+	}
 }
