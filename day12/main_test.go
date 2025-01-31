@@ -22,3 +22,13 @@ func TestInbounds(t *testing.T) {
 		}
 	}
 }
+
+func TestClockwise(t *testing.T) {
+	directions := []Point{{0, 1}, {1, 0}, {0, -1}, {-1, 0}}
+	for i, d := range directions {
+		j := (i + 1) % len(directions)
+		if clockwise(d) != directions[j] {
+			t.Error("Expected clockwise:", d, directions[j], "got:", clockwise(d))
+		}
+	}
+}

@@ -10,6 +10,7 @@ import (
 )
 
 type Point struct{ x, y int }
+type Vector struct{ loc, dir Point }
 
 func parseInput() ([][]byte, Point) {
 	scanner := bufio.NewScanner(os.Stdin)
@@ -31,6 +32,7 @@ func parseInput() ([][]byte, Point) {
 func main() {
 	board, size := parseInput()
 	part1(board, size)
+	part2(board, size)
 }
 
 func nextUnvisited(visited [][]bool) Point {
@@ -53,12 +55,16 @@ func add(a, b Point) Point {
 	return Point{a.x + b.x, a.y + b.y}
 }
 
-func neighbors(p Point) iter.Seq[Point] {
+func clockwise(p Point) Point {
+	return Point{p.y, -p.x}
+}
+
+func neighbors(p Point) iter.Seq2[Point, Point] {
 	directions := [4]Point{{0, 1}, {1, 0}, {0, -1}, {-1, 0}}
-	return func(yield func(Point) bool) {
+	return func(yield func(Point, Point) bool) {
 		for _, d := range directions {
 			pn := add(p, d)
-			if !yield(pn) {
+			if !yield(d, pn) {
 				return
 			}
 		}
@@ -75,37 +81,28 @@ func get(board [][]byte, p Point) byte {
 	}
 }
 
-func visit(start Point, board [][]byte, visited [][]bool) (area, perimeter int, region map[Point]bool) {
+func visit(start Point, board [][]byte, visited [][]bool) (area int, edges map[Vector]bool) {
 	area = 0
-	perimeter = 0
-
-	region = make(map[Point]bool)
+	edges = make(map[Vector]bool)
 
 	queue := new(queues.Queue[Point])
 	visited[start.y][start.x] = true
-	region[start] = true
 	queue.Enqueue(start)
 
 	for queue.HasNext() {
-		cur := queue.Dequeue()
-		for next := range neighbors(*cur) {
+		cur := *queue.Dequeue()
+		for dir, next := range neighbors(cur) {
 			if !inbounds(next, board) || board[next.y][next.x] != board[cur.y][cur.x] {
-				perimeter++
+				edges[Vector{cur, dir}] = true
 			} else if !visited[next.y][next.x] {
 				visited[next.y][next.x] = true
-				region[next] = true
 				queue.Enqueue(next)
-			} else {
-				// visited, inbounds, and same species: should be in region!
-				if !region[next] {
-					panic(fmt.Sprintf("Expected %v in region", next))
-				}
 			}
 		}
 		area++
 	}
 
-	return area, perimeter, region
+	return area, edges
 }
 
 func printBoard(board [][]byte, visited [][]bool) {
@@ -121,21 +118,6 @@ func printBoard(board [][]byte, visited [][]bool) {
 	}
 }
 
-func totalPerimeter(board [][]byte) int {
-	total := 0
-	for y := range board {
-		for x := range board[y] {
-			cur := Point{x, y}
-			for neighbor := range neighbors(cur) {
-				if get(board, neighbor) != get(board, cur) {
-					total++
-				}
-			}
-		}
-	}
-	return total
-}
-
 func part1(board [][]byte, size Point) {
 	visited := make([][]bool, size.y)
 	for i := range visited {
@@ -143,48 +125,50 @@ func part1(board [][]byte, size Point) {
 	}
 
 	total := 0
-	total_perimeter := 0
-	total_area := 0
-	total_regions := 0
-
-	regions := make([]map[Point]bool, 0)
 
 	for {
 		next := nextUnvisited(visited)
 		if next == size {
 			break
 		}
-		area, perimeter, region := visit(next, board, visited)
-		regions = append(regions, region)
-		total_area += area
-		total_perimeter += perimeter
-		fmt.Printf("Plot %v %v: area=%d, perimeter=%d\n", string(get(board, next)), next, area, perimeter)
-		total += area * perimeter
-		total_regions += 1
+		area, edges := visit(next, board, visited)
+		total += area * len(edges)
 	}
-
-	// printBoard(board, visited)
 
 	fmt.Println("total:", total)
-	fmt.Println("total_area:", total_area, "expected", size.x*size.y)
-	fmt.Println("total_perimeter:", total_perimeter, "expected", totalPerimeter(board))
-	fmt.Println("total_regions:", total_regions)
-
-	checkRegions(board, regions)
 }
 
-func checkRegions(board [][]byte, regions []map[Point]bool) {
-	for _, region := range regions {
-		for p := range region {
-			neighbors := []Point{{p.x, p.y + 1}, {p.x + 1, p.y}, {p.x, p.y - 1}, {p.x - 1, p.y}}
-			for _, n := range neighbors {
-				if n.y < 0 || n.y >= len(board) || n.x < 0 || n.x >= len(board[0]) {
-					// out of bounds
-					continue
-				} else if !region[n] && (board[p.y][p.x] == board[n.y][n.x]) {
-					fmt.Println("Regions should be merged:", p, n, string(board[p.y][p.x]), string(board[n.y][n.x]))
-				}
-			}
+func sides(edges map[Vector]bool) int {
+	total := 0
+
+	for edge := range edges {
+		rh := Vector{add(edge.loc, clockwise(edge.dir)), edge.dir}
+		if !edges[rh] {
+			total++
 		}
 	}
+
+	return total
+}
+
+func part2(board [][]byte, size Point) {
+	visited := make([][]bool, size.y)
+	for i := range visited {
+		visited[i] = make([]bool, size.x)
+	}
+
+	total := 0
+
+	for {
+		next := nextUnvisited(visited)
+		if next == size {
+			break
+		}
+		area, edges := visit(next, board, visited)
+		// we only count edges that have no "right-hand" neighbor
+
+		total += area * sides(edges)
+	}
+
+	fmt.Println("total:", total)
 }
